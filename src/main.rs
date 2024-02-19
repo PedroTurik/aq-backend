@@ -1,19 +1,35 @@
 
 use axum::{
-    http::StatusCode, routing::{get, post}, BoxError, Json, Router
+    routing::get, BoxError, Router
 };
-use serde::{Deserialize, Serialize};
-use tracing::info;
+use socketioxide::{extract::SocketRef, socket::DisconnectReason, SocketIo};
+use tokio::runtime::EnterGuard;
+use tower_http::cors::CorsLayer;
+use tracing::{info, instrument, Instrument};
+
+#[instrument]
+async fn on_connect(socket: SocketRef) {
+    info!("New connection: {:?}", socket);
+}
+
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError>{
     // initialize tracing
     tracing_subscriber::fmt::init();
 
+    let (layer, io) = SocketIo::new_layer();
+
+    io.ns("/", on_connect);
+
+
+
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(|| async { "Hello, world" }));
+        .route("/", get(|| async { "Hello, world" }))
+        .layer(CorsLayer::permissive())
+        .layer(layer);
 
     info!("Starting server...");
     
